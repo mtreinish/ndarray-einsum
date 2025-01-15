@@ -61,11 +61,10 @@ fn maybe_find_outputs_in_inputs_unique(
                 .iter()
                 .position(|&input_char| input_char == output_char);
             if input_pos.is_some() {
-                assert!(input_indices
+                assert!(!input_indices
                     .iter()
                     .skip(input_pos.unwrap() + 1)
-                    .position(|&input_char| input_char == output_char)
-                    .is_none());
+                    .any(|&input_char| input_char == output_char));
             }
             input_pos
         })
@@ -258,9 +257,9 @@ impl TensordotGeneral {
             &lhs_shape,
             &rhs_shape,
             lhs_indices,
-            &rhs_indices,
-            &contracted_indices,
-            &output_indices,
+            rhs_indices,
+            contracted_indices,
+            output_indices,
         )
     }
 
@@ -272,15 +271,14 @@ impl TensordotGeneral {
         contracted_indices: &[char],
         output_indices: &[char],
     ) -> Self {
-        let lhs_contracted_axes = find_outputs_in_inputs_unique(&contracted_indices, &lhs_indices);
-        let rhs_contracted_axes = find_outputs_in_inputs_unique(&contracted_indices, &rhs_indices);
+        let lhs_contracted_axes = find_outputs_in_inputs_unique(contracted_indices, lhs_indices);
+        let rhs_contracted_axes = find_outputs_in_inputs_unique(contracted_indices, rhs_indices);
         let mut uncontracted_chars: Vec<char> = lhs_indices
             .iter()
             .filter(|&&input_char| {
                 output_indices
                     .iter()
-                    .position(|&output_char| input_char == output_char)
-                    .is_some()
+                    .any(|&output_char| input_char == output_char)
             })
             .cloned()
             .collect();
@@ -289,17 +287,16 @@ impl TensordotGeneral {
             .filter(|&&input_char| {
                 output_indices
                     .iter()
-                    .position(|&output_char| input_char == output_char)
-                    .is_some()
+                    .any(|&output_char| input_char == output_char)
             })
             .cloned()
             .collect();
         uncontracted_chars.append(&mut rhs_uncontracted_chars);
-        let output_order = find_outputs_in_inputs_unique(&output_indices, &uncontracted_chars);
+        let output_order = find_outputs_in_inputs_unique(output_indices, &uncontracted_chars);
 
         TensordotGeneral::from_shapes_and_axis_numbers(
-            &lhs_shape,
-            &rhs_shape,
+            lhs_shape,
+            rhs_shape,
             &lhs_contracted_axes,
             &rhs_contracted_axes,
             &output_order,
@@ -364,7 +361,7 @@ impl TensordotGeneral {
                 num_contracted_axes,
             );
 
-        let output_permutation = Permutation::from_indices(&output_order);
+        let output_permutation = Permutation::from_indices(output_order);
 
         TensordotGeneral {
             lhs_permutation,
@@ -532,7 +529,7 @@ impl<A> PairContractor<A> for ScalarMatrixProduct {
         'c: 'd,
         A: Clone + LinalgScalar,
     {
-        let lhs_0d: A = lhs.first().unwrap().clone();
+        let lhs_0d: A = *lhs.first().unwrap();
         rhs.mapv(|x| x * lhs_0d)
     }
 }
@@ -631,7 +628,7 @@ impl<A> PairContractor<A> for MatrixScalarProduct {
         'c: 'd,
         A: Clone + LinalgScalar,
     {
-        let rhs_0d: A = rhs.first().unwrap().clone();
+        let rhs_0d: A = *rhs.first().unwrap();
         lhs.mapv(|x| x * rhs_0d)
     }
 }
@@ -720,26 +717,18 @@ impl BroadcastProductGeneral {
         let rhs_indices = &sc.contraction.operand_indices[1];
         let output_indices = &sc.contraction.output_indices;
 
-        let maybe_lhs_indices = maybe_find_outputs_in_inputs_unique(&output_indices, &lhs_indices);
-        let maybe_rhs_indices = maybe_find_outputs_in_inputs_unique(&output_indices, &rhs_indices);
-        let lhs_indices: Vec<usize> = maybe_lhs_indices
-            .iter()
-            .filter(|x| x.is_some())
-            .map(|x| x.unwrap())
-            .collect();
-        let rhs_indices: Vec<usize> = maybe_rhs_indices
-            .iter()
-            .filter(|x| x.is_some())
-            .map(|x| x.unwrap())
-            .collect();
+        let maybe_lhs_indices = maybe_find_outputs_in_inputs_unique(output_indices, lhs_indices);
+        let maybe_rhs_indices = maybe_find_outputs_in_inputs_unique(output_indices, rhs_indices);
+        let lhs_indices: Vec<usize> = maybe_lhs_indices.iter().copied().flatten().collect();
+        let rhs_indices: Vec<usize> = maybe_rhs_indices.iter().copied().flatten().collect();
         let lhs_insertions: Vec<usize> = maybe_lhs_indices
-            .iter()
+            .into_iter()
             .enumerate()
             .filter(|(_, x)| x.is_none())
             .map(|(i, _)| i)
             .collect();
         let rhs_insertions: Vec<usize> = maybe_rhs_indices
-            .iter()
+            .into_iter()
             .enumerate()
             .filter(|(_, x)| x.is_none())
             .map(|(i, _)| i)
@@ -834,8 +823,8 @@ impl StackedTensordotGeneral {
         let rhs_indices = &sc.contraction.operand_indices[1];
         let output_indices = &sc.contraction.output_indices;
 
-        let maybe_lhs_axes = maybe_find_outputs_in_inputs_unique(&output_indices, &lhs_indices);
-        let maybe_rhs_axes = maybe_find_outputs_in_inputs_unique(&output_indices, &rhs_indices);
+        let maybe_lhs_axes = maybe_find_outputs_in_inputs_unique(output_indices, lhs_indices);
+        let maybe_rhs_axes = maybe_find_outputs_in_inputs_unique(output_indices, rhs_indices);
         let mut lhs_stack_axes = Vec::new();
         let mut rhs_stack_axes = Vec::new();
         let mut stack_indices = Vec::new();
@@ -883,9 +872,9 @@ impl StackedTensordotGeneral {
         }
 
         for (lhs_pos, &lhs_char) in lhs_indices.iter().enumerate() {
-            if let None = output_indices
+            if !output_indices
                 .iter()
-                .position(|&output_char| output_char == lhs_char)
+                .any(|&output_char| output_char == lhs_char)
             {
                 // Contracted index
                 lhs_contracted_axes.push(lhs_pos);
@@ -931,7 +920,7 @@ impl StackedTensordotGeneral {
             intermediate_shape.push(sc.output_size[rhs_char]);
         }
 
-        let output_order = find_outputs_in_inputs_unique(&output_indices, &intermediate_indices);
+        let output_order = find_outputs_in_inputs_unique(output_indices, &intermediate_indices);
         let output_shape = intermediate_indices
             .iter()
             .map(|c| sc.output_size[c])

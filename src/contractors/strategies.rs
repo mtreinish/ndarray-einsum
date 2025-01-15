@@ -52,7 +52,7 @@ impl SingletonSummary {
         let output_indices = &sc.contraction.output_indices;
         let input_indices = &sc.contraction.operand_indices[0];
 
-        SingletonSummary::from_indices(&input_indices, &output_indices)
+        SingletonSummary::from_indices(input_indices, output_indices)
     }
 
     fn from_indices(input_indices: &[char], output_indices: &[char]) -> Self {
@@ -123,7 +123,7 @@ impl PairSummary {
         let lhs_indices = &sc.contraction.operand_indices[0];
         let rhs_indices = &sc.contraction.operand_indices[1];
 
-        PairSummary::from_indices(&lhs_indices, &rhs_indices, &output_indices)
+        PairSummary::from_indices(lhs_indices, rhs_indices, output_indices)
     }
 
     fn from_indices(lhs_indices: &[char], rhs_indices: &[char], output_indices: &[char]) -> Self {

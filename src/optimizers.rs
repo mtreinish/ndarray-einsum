@@ -253,7 +253,7 @@ fn generate_path(sized_contraction: &SizedContraction, tensor_order: &[usize]) -
                 // Phew, now make the mini-contraction.
                 let sc = generate_sized_contraction_pair(
                     &lhs_indices,
-                    &rhs_indices,
+                    rhs_indices,
                     &output_indices,
                     &permuted_contraction,
                 );

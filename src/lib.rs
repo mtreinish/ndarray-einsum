@@ -284,8 +284,8 @@ where
     let rhs_axes_copy: Vec<_> = rhs_axes.iter().map(|x| x.index()).collect();
     let output_order: Vec<usize> = (0..(lhs.ndim() + rhs.ndim() - 2 * (lhs_axes.len()))).collect();
     let tensordotter = TensordotGeneral::from_shapes_and_axis_numbers(
-        &lhs.shape(),
-        &rhs.shape(),
+        lhs.shape(),
+        rhs.shape(),
         &lhs_axes_copy,
         &rhs_axes_copy,
         &output_order,

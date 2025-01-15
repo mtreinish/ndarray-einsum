@@ -140,7 +140,7 @@ pub struct SingletonContraction<A> {
 
 impl<A> SingletonContraction<A> {
     pub fn new(sc: &SizedContraction) -> Self {
-        let singleton_summary = SingletonSummary::new(&sc);
+        let singleton_summary = SingletonSummary::new(sc);
         let method = singleton_summary.get_strategy();
 
         SingletonContraction {
@@ -279,15 +279,15 @@ impl<A> PairContraction<A> {
         let output_indices = &sc.contraction.output_indices;
 
         let lhs_simplification = SimplificationMethodAndOutput::from_indices_and_sizes(
-            &lhs_indices,
-            &rhs_indices,
-            &output_indices,
+            lhs_indices,
+            rhs_indices,
+            output_indices,
             sc,
         );
         let rhs_simplification = SimplificationMethodAndOutput::from_indices_and_sizes(
-            &rhs_indices,
-            &lhs_indices,
-            &output_indices,
+            rhs_indices,
+            lhs_indices,
+            output_indices,
             sc,
         );
         let new_lhs_indices = match &lhs_simplification {
@@ -300,7 +300,7 @@ impl<A> PairContraction<A> {
         };
 
         let reduced_sc = sc
-            .subset(&[new_lhs_indices, new_rhs_indices], &output_indices)
+            .subset(&[new_lhs_indices, new_rhs_indices], output_indices)
             .unwrap();
 
         let pair_summary = PairSummary::new(&reduced_sc);
@@ -429,7 +429,7 @@ pub struct EinsumPath<A> {
 
 impl<A> EinsumPath<A> {
     pub fn new(sc: &SizedContraction) -> Self {
-        let contraction_order = generate_optimized_order(&sc, OptimizationMethod::Naive);
+        let contraction_order = generate_optimized_order(sc, OptimizationMethod::Naive);
 
         EinsumPath::from_path(&contraction_order)
     }

@@ -130,7 +130,6 @@ impl<A> SingletonContractor<A> for Permutation {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct Summation {
-    orig_axis_list: Vec<usize>,
     adjusted_axis_list: Vec<usize>,
 }
 
@@ -147,13 +146,9 @@ impl Summation {
 
     fn from_sizes(start_index: usize, num_summed_axes: usize) -> Self {
         assert!(num_summed_axes >= 1);
-        let orig_axis_list = (start_index..(start_index + num_summed_axes)).collect();
         let adjusted_axis_list = (0..num_summed_axes).map(|_| start_index).collect();
 
-        Summation {
-            orig_axis_list,
-            adjusted_axis_list,
-        }
+        Summation { adjusted_axis_list }
     }
 }
 
@@ -243,7 +238,7 @@ impl<A> SingletonViewer<A> for Diagonalization {
         let data_slice = tensor.as_slice_memory_order().unwrap();
         ArrayView::from_shape(
             IxDyn(&self.output_shape).strides(IxDyn(&strides)),
-            &data_slice,
+            data_slice,
         )
         .unwrap()
     }
@@ -285,11 +280,11 @@ impl PermutationAndSummation {
             output_order.push(input_pos);
         }
         for (i, &input_char) in sc.contraction.operand_indices[0].iter().enumerate() {
-            if let None = sc
+            if !sc
                 .contraction
                 .output_indices
                 .iter()
-                .position(|&output_char| output_char == input_char)
+                .any(|&output_char| output_char == input_char)
             {
                 output_order.push(i);
             }
