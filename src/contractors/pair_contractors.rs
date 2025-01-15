@@ -194,7 +194,7 @@ impl<A> PairContractor<A> for TensordotFixedPosition {
         let lhs_array;
         let lhs_view = if lhs.is_standard_layout() {
             lhs.view()
-                .into_shape((self.len_uncontracted_lhs, self.len_contracted_axes))
+                .into_shape_with_order((self.len_uncontracted_lhs, self.len_contracted_axes))
                 .unwrap()
         } else {
             lhs_array = Array::from_shape_vec(
@@ -208,7 +208,7 @@ impl<A> PairContractor<A> for TensordotFixedPosition {
         let rhs_array;
         let rhs_view = if rhs.is_standard_layout() {
             rhs.view()
-                .into_shape((self.len_contracted_axes, self.len_uncontracted_rhs))
+                .into_shape_with_order((self.len_contracted_axes, self.len_uncontracted_rhs))
                 .unwrap()
         } else {
             rhs_array = Array::from_shape_vec(
@@ -221,7 +221,7 @@ impl<A> PairContractor<A> for TensordotFixedPosition {
 
         lhs_view
             .dot(&rhs_view)
-            .into_shape(IxDyn(&self.output_shape))
+            .into_shape_with_order(IxDyn(&self.output_shape))
             .unwrap()
     }
 }
@@ -995,7 +995,7 @@ impl<A> PairContractor<A> for StackedTensordotGeneral {
             );
         }
         let intermediate_reshaped = intermediate_result
-            .into_shape(IxDyn(&self.output_shape))
+            .into_shape_with_order(IxDyn(&self.output_shape))
             .unwrap();
         self.output_permutation
             .contract_singleton(&intermediate_reshaped.view())
