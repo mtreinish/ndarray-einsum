@@ -1,0 +1,12 @@
+ndarray-einsum
+Copyright 2025 Matthew Treinish
+
+This project was forked from ndarray_einsum_beta
+Copyright 2019 Jared Samet
+The source of the original can be found at:
+https://github.com/oracleofnj/einsum
+
+This project's fork starts at commit: 7ee1802a510c3454466e9d06e3a5a461a1b128d5
+Hosted on github:
+https://github.com/mtreinish/ndarray-einsum/commit/7ee1802a510c3454466e9d06e3a5a461a1b128d5
+
