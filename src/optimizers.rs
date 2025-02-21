@@ -154,7 +154,7 @@ fn generate_path(sized_contraction: &SizedContraction, tensor_order: &[usize]) -
         1 => {
             // If there's only one input tensor, make a single-step path consisting of a
             // singleton contraction (operand_nums = None).
-            ContractionOrder::Singleton(permuted_contraction.clone())
+            ContractionOrder::Singleton(permuted_contraction)
         }
         2 => {
             // If there's exactly two input tensors, make a single-step path consisting
