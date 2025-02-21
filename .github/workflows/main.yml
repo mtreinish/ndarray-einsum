@@ -1,0 +1,52 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ${{ matrix.platform.os }}
+    name: ${{ matrix.platform.os }} ${{ matrix.msrv }}
+    strategy:
+      matrix:
+        rust: [stable]
+        platform: [
+            { os: "macOS-13", rust-target: "x86_64-apple-darwin" },
+            { os: "macOS-14", rust-target: "aarch64-apple-darwin" },
+            { os: "ubuntu-latest", rust-target: "x86_64-unknown-linux-gnu" },
+            { os: "ubuntu-24.04-arm", rust-target: "x86_64-unknown-linux-gnu" },
+            { os: "windows-latest", rust-target: "x86_64-pc-windows-msvc" },
+        ]
+        include:
+          # Test minimal supported Rust version
+          - rust: 1.79.0
+            platform: { os: "ubuntu-latest", rust-target: "x86_64-unknown-linux-gnu" }
+            msrv: "MSRV"
+          # Test future versions of Rust and Python
+          - rust: beta
+            platform: { os: "ubuntu-latest", rust-target: "x86_64-unknown-linux-gnu" }
+            msrv: "Beta"
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.platform.rust-target }}
+        components: rustfmt, clippy
+    - name: Rust Format
+      run: cargo fmt --all -- --check
+      if: ${{ matrix.rust }} == "stable"
+    - name: Clippy
+      run: cargo clippy -- -D warnings
+      if: ${{ matrix.rust }} == "stable"
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
