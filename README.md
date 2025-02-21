@@ -17,7 +17,7 @@ ndarray_einsum = "0.9.0"
 
 src/main.rs:
 
-```
+```rust
 use ndarray::prelude::*;
 use ndarray_einsum::*;
 
@@ -36,7 +36,7 @@ fn main() {
 
 General algorithm description in semi-Rust pseudocode
 
-```
+```rust
 FirstStep = Singleton({
   contraction: Contraction,
 }) | Pair({
