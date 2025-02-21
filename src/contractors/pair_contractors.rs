@@ -37,15 +37,12 @@
 //! one way to express the same contraction; some preliminary benchmarking has been
 //! done to identify the faster choice.
 
+use hashbrown::HashSet;
 use ndarray::prelude::*;
 use ndarray::LinalgScalar;
-use std::collections::HashSet;
 
 use super::{PairContractor, Permutation, SingletonContractor, SingletonViewer};
 use crate::SizedContraction;
-
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 
 /// Helper function used throughout this module to find the positions of one set of indices
 /// in a second set of indices. The most common case is generating a permutation to
@@ -61,11 +58,10 @@ fn maybe_find_outputs_in_inputs_unique(
                 .iter()
                 .position(|&input_char| input_char == output_char);
             if input_pos.is_some() {
-                assert!(input_indices
+                assert!(!input_indices
                     .iter()
                     .skip(input_pos.unwrap() + 1)
-                    .position(|&input_char| input_char == output_char)
-                    .is_none());
+                    .any(|&input_char| input_char == output_char));
             }
             input_pos
         })
@@ -91,7 +87,6 @@ fn find_outputs_in_inputs_unique(output_indices: &[char], input_indices: &[char]
 /// [len_uncontracted_lhs, len_contracted_axes], reshaping the RHS into shape
 /// [len_contracted_axes, len_contracted_rhs], matrix-multiplying the two reshaped tensor,
 /// and then reshaping the result into [...self.output_shape].
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct TensordotFixedPosition {
     /// The product of the lengths of all the uncontracted axes in the LHS (or 1 if all of the
@@ -194,7 +189,7 @@ impl<A> PairContractor<A> for TensordotFixedPosition {
         let lhs_array;
         let lhs_view = if lhs.is_standard_layout() {
             lhs.view()
-                .into_shape((self.len_uncontracted_lhs, self.len_contracted_axes))
+                .into_shape_with_order((self.len_uncontracted_lhs, self.len_contracted_axes))
                 .unwrap()
         } else {
             lhs_array = Array::from_shape_vec(
@@ -208,7 +203,7 @@ impl<A> PairContractor<A> for TensordotFixedPosition {
         let rhs_array;
         let rhs_view = if rhs.is_standard_layout() {
             rhs.view()
-                .into_shape((self.len_contracted_axes, self.len_uncontracted_rhs))
+                .into_shape_with_order((self.len_contracted_axes, self.len_uncontracted_rhs))
                 .unwrap()
         } else {
             rhs_array = Array::from_shape_vec(
@@ -221,7 +216,7 @@ impl<A> PairContractor<A> for TensordotFixedPosition {
 
         lhs_view
             .dot(&rhs_view)
-            .into_shape(IxDyn(&self.output_shape))
+            .into_shape_with_order(IxDyn(&self.output_shape))
             .unwrap()
     }
 }
@@ -235,7 +230,6 @@ impl<A> PairContractor<A> for TensordotFixedPosition {
 ///
 /// 1. `jik,jkl->il` LHS tensor needs to be permuted `jik->ijk`
 /// 2. `ijk,klm->imlj` Output tensor needs to be permuted `ijlm->imlj`
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct TensordotGeneral {
     lhs_permutation: Permutation,
@@ -258,9 +252,9 @@ impl TensordotGeneral {
             &lhs_shape,
             &rhs_shape,
             lhs_indices,
-            &rhs_indices,
-            &contracted_indices,
-            &output_indices,
+            rhs_indices,
+            contracted_indices,
+            output_indices,
         )
     }
 
@@ -272,15 +266,14 @@ impl TensordotGeneral {
         contracted_indices: &[char],
         output_indices: &[char],
     ) -> Self {
-        let lhs_contracted_axes = find_outputs_in_inputs_unique(&contracted_indices, &lhs_indices);
-        let rhs_contracted_axes = find_outputs_in_inputs_unique(&contracted_indices, &rhs_indices);
+        let lhs_contracted_axes = find_outputs_in_inputs_unique(contracted_indices, lhs_indices);
+        let rhs_contracted_axes = find_outputs_in_inputs_unique(contracted_indices, rhs_indices);
         let mut uncontracted_chars: Vec<char> = lhs_indices
             .iter()
             .filter(|&&input_char| {
                 output_indices
                     .iter()
-                    .position(|&output_char| input_char == output_char)
-                    .is_some()
+                    .any(|&output_char| input_char == output_char)
             })
             .cloned()
             .collect();
@@ -289,17 +282,16 @@ impl TensordotGeneral {
             .filter(|&&input_char| {
                 output_indices
                     .iter()
-                    .position(|&output_char| input_char == output_char)
-                    .is_some()
+                    .any(|&output_char| input_char == output_char)
             })
             .cloned()
             .collect();
         uncontracted_chars.append(&mut rhs_uncontracted_chars);
-        let output_order = find_outputs_in_inputs_unique(&output_indices, &uncontracted_chars);
+        let output_order = find_outputs_in_inputs_unique(output_indices, &uncontracted_chars);
 
         TensordotGeneral::from_shapes_and_axis_numbers(
-            &lhs_shape,
-            &rhs_shape,
+            lhs_shape,
+            rhs_shape,
             &lhs_contracted_axes,
             &rhs_contracted_axes,
             &output_order,
@@ -364,7 +356,7 @@ impl TensordotGeneral {
                 num_contracted_axes,
             );
 
-        let output_permutation = Permutation::from_indices(&output_order);
+        let output_permutation = Permutation::from_indices(output_order);
 
         TensordotGeneral {
             lhs_permutation,
@@ -402,7 +394,6 @@ impl<A> PairContractor<A> for TensordotGeneral {
 /// `ij,ij->ij`.
 ///
 /// Contractions of the form `ij,ji->ij` need to use `HadamardProductGeneral` instead.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct HadamardProduct {}
 
@@ -445,7 +436,6 @@ impl<A> PairContractor<A> for HadamardProduct {
 ///
 /// 1. `ij,ij->ij` (Can also can use `HadamardProduct`)
 /// 2. `ij,ji->ij` (Can only use `HadamardProductGeneral`)
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct HadamardProductGeneral {
     lhs_permutation: Permutation,
@@ -500,7 +490,6 @@ impl<A> PairContractor<A> for HadamardProductGeneral {
 /// axes being summed before the two tensors are contracted. For example, in the contraction
 /// `i,jk->jk`, every element of the RHS tensor is simply multiplied by the sum of the elements
 /// of the LHS tensor.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct ScalarMatrixProduct {}
 
@@ -532,7 +521,7 @@ impl<A> PairContractor<A> for ScalarMatrixProduct {
         'c: 'd,
         A: Clone + LinalgScalar,
     {
-        let lhs_0d: A = lhs.first().unwrap().clone();
+        let lhs_0d: A = *lhs.first().unwrap();
         rhs.mapv(|x| x * lhs_0d)
     }
 }
@@ -544,7 +533,6 @@ impl<A> PairContractor<A> for ScalarMatrixProduct {
 /// axes being summed before the two tensors are contracted. For example, in the contraction
 /// `i,jk->kj`, the output matrix is equal to the RHS matrix, transposed and then scalar-multiplied
 /// by the sum of the elements of the LHS tensor.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct ScalarMatrixProductGeneral {
     rhs_permutation: Permutation,
@@ -599,7 +587,6 @@ impl<A> PairContractor<A> for ScalarMatrixProductGeneral {
 /// axes being summed before the two tensors are contracted. For example, in the contraction
 /// `ij,k->ij`, every element of the LHS tensor is simply multiplied by the sum of the elements
 /// of the RHS tensor.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MatrixScalarProduct {}
 
@@ -631,7 +618,7 @@ impl<A> PairContractor<A> for MatrixScalarProduct {
         'c: 'd,
         A: Clone + LinalgScalar,
     {
-        let rhs_0d: A = rhs.first().unwrap().clone();
+        let rhs_0d: A = *rhs.first().unwrap();
         lhs.mapv(|x| x * rhs_0d)
     }
 }
@@ -643,7 +630,6 @@ impl<A> PairContractor<A> for MatrixScalarProduct {
 /// axes being summed before the two tensors are contracted. For example, in the contraction
 /// `ij,k->ji`, the output matrix is equal to the LHS matrix, transposed and then scalar-multiplied
 /// by the sum of the elements of the RHS tensor.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct MatrixScalarProductGeneral {
     lhs_permutation: Permutation,
@@ -702,7 +688,6 @@ impl<A> PairContractor<A> for MatrixScalarProductGeneral {
 ///
 /// However, the limited benchmarking performed so far favored iterating along the
 /// `j` axis and computing the outer products `i,k->ik` for each subview of the tensors.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct BroadcastProductGeneral {
     lhs_permutation: Permutation,
@@ -720,26 +705,18 @@ impl BroadcastProductGeneral {
         let rhs_indices = &sc.contraction.operand_indices[1];
         let output_indices = &sc.contraction.output_indices;
 
-        let maybe_lhs_indices = maybe_find_outputs_in_inputs_unique(&output_indices, &lhs_indices);
-        let maybe_rhs_indices = maybe_find_outputs_in_inputs_unique(&output_indices, &rhs_indices);
-        let lhs_indices: Vec<usize> = maybe_lhs_indices
-            .iter()
-            .filter(|x| x.is_some())
-            .map(|x| x.unwrap())
-            .collect();
-        let rhs_indices: Vec<usize> = maybe_rhs_indices
-            .iter()
-            .filter(|x| x.is_some())
-            .map(|x| x.unwrap())
-            .collect();
+        let maybe_lhs_indices = maybe_find_outputs_in_inputs_unique(output_indices, lhs_indices);
+        let maybe_rhs_indices = maybe_find_outputs_in_inputs_unique(output_indices, rhs_indices);
+        let lhs_indices: Vec<usize> = maybe_lhs_indices.iter().copied().flatten().collect();
+        let rhs_indices: Vec<usize> = maybe_rhs_indices.iter().copied().flatten().collect();
         let lhs_insertions: Vec<usize> = maybe_lhs_indices
-            .iter()
+            .into_iter()
             .enumerate()
             .filter(|(_, x)| x.is_none())
             .map(|(i, _)| i)
             .collect();
         let rhs_insertions: Vec<usize> = maybe_rhs_indices
-            .iter()
+            .into_iter()
             .enumerate()
             .filter(|(_, x)| x.is_none())
             .map(|(i, _)| i)
@@ -808,7 +785,6 @@ impl<A> PairContractor<A> for BroadcastProductGeneral {
 /// but is less performant than special-casing when there are no "stack" indices. It is also
 /// currently the only case that requires `.outer_iter_mut()` (which might make parallelizing
 /// operations more difficult).
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct StackedTensordotGeneral {
     lhs_permutation: Permutation,
@@ -834,8 +810,8 @@ impl StackedTensordotGeneral {
         let rhs_indices = &sc.contraction.operand_indices[1];
         let output_indices = &sc.contraction.output_indices;
 
-        let maybe_lhs_axes = maybe_find_outputs_in_inputs_unique(&output_indices, &lhs_indices);
-        let maybe_rhs_axes = maybe_find_outputs_in_inputs_unique(&output_indices, &rhs_indices);
+        let maybe_lhs_axes = maybe_find_outputs_in_inputs_unique(output_indices, lhs_indices);
+        let maybe_rhs_axes = maybe_find_outputs_in_inputs_unique(output_indices, rhs_indices);
         let mut lhs_stack_axes = Vec::new();
         let mut rhs_stack_axes = Vec::new();
         let mut stack_indices = Vec::new();
@@ -883,9 +859,9 @@ impl StackedTensordotGeneral {
         }
 
         for (lhs_pos, &lhs_char) in lhs_indices.iter().enumerate() {
-            if let None = output_indices
+            if !output_indices
                 .iter()
-                .position(|&output_char| output_char == lhs_char)
+                .any(|&output_char| output_char == lhs_char)
             {
                 // Contracted index
                 lhs_contracted_axes.push(lhs_pos);
@@ -931,7 +907,7 @@ impl StackedTensordotGeneral {
             intermediate_shape.push(sc.output_size[rhs_char]);
         }
 
-        let output_order = find_outputs_in_inputs_unique(&output_indices, &intermediate_indices);
+        let output_order = find_outputs_in_inputs_unique(output_indices, &intermediate_indices);
         let output_shape = intermediate_indices
             .iter()
             .map(|c| sc.output_size[c])
@@ -995,7 +971,7 @@ impl<A> PairContractor<A> for StackedTensordotGeneral {
             );
         }
         let intermediate_reshaped = intermediate_result
-            .into_shape(IxDyn(&self.output_shape))
+            .into_shape_with_order(IxDyn(&self.output_shape))
             .unwrap();
         self.output_permutation
             .contract_singleton(&intermediate_reshaped.view())

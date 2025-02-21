@@ -1,18 +1,25 @@
 # Einsum (Einstein Summation) for [Rust ndarray](https://docs.rs/ndarray/)
 
+This library is a fork of:
+
+https://github.com/oracleofnj/einsum
+
+which isn't actively being developed anymore. This fork of that library was
+created to keep the tool up to date with Rust, ndarray, etc.
+
 ## Minimal example
 
 Cargo.toml:
 
 ```
-ndarray_einsum_beta = "0.7.0"
+ndarray_einsum = "0.9.0"
 ```
 
 src/main.rs:
 
 ```
 use ndarray::prelude::*;
-use ndarray_einsum_beta::*;
+use ndarray_einsum::*;
 
 fn main() {
     let m1 = arr1(&[1, 2]);
@@ -23,7 +30,7 @@ fn main() {
 
 ## Documentation
 
-[Documentation Site](https://docs.rs/ndarray_einsum_beta/)
+[Documentation Site](https://docs.rs/ndarray_einsum/)
 
 ## Better documentation to follow
 

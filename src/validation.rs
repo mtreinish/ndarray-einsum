@@ -24,14 +24,11 @@
 use crate::{
     generate_optimized_order, ArrayLike, ContractionOrder, EinsumPath, OptimizationMethod,
 };
+use hashbrown::{HashMap, HashSet};
 use lazy_static::lazy_static;
 use ndarray::prelude::*;
 use ndarray::LinalgScalar;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
-
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 
 /// The result of running an `einsum`-formatted string through the regex.
 #[derive(Debug)]
@@ -43,7 +40,7 @@ struct EinsumParse {
 /// A `Contraction` contains the result of parsing an `einsum`-formatted string.
 ///
 /// ```
-/// # use ndarray_einsum_beta::*;
+/// # use ndarray_einsum::*;
 /// let contraction = Contraction::new("ij,jk->ik").unwrap();
 /// assert_eq!(contraction.operand_indices, vec![vec!['i', 'j'], vec!['j', 'k']]);
 /// assert_eq!(contraction.output_indices, vec!['i', 'k']);
@@ -54,7 +51,6 @@ struct EinsumParse {
 /// assert_eq!(contraction.output_indices, vec!['i', 'k']);
 /// assert_eq!(contraction.summation_indices, vec!['j']);
 /// ```
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Contraction {
     /// A vector with as many elements as input operands, where each
@@ -94,7 +90,7 @@ impl Contraction {
 
                 let mut unique_indices: Vec<char> = input_indices
                     .iter()
-                    .filter(|(_, &v)| v == 1)
+                    .filter(|&(_, &v)| v == 1)
                     .map(|(&k, _)| k)
                     .collect();
                 unique_indices.sort();
@@ -132,19 +128,19 @@ impl Contraction {
             }
 
             // Must be in inputs
-            if input_char_counts.get(&c).is_none() {
+            if !input_char_counts.contains_key(&c) {
                 return Err("Requested output contains an index not found in inputs");
             }
         }
 
         let mut summation_indices: Vec<char> = input_char_counts
             .keys()
-            .filter(|&c| distinct_output_indices.get(c).is_none())
+            .filter(|&c| !distinct_output_indices.contains_key(c))
             .cloned()
             .collect();
         summation_indices.sort();
 
-        let cloned_operand_indices: Vec<Vec<char>> = operand_indices.iter().cloned().collect();
+        let cloned_operand_indices: Vec<Vec<char>> = operand_indices.to_vec();
 
         Ok(Contraction {
             operand_indices: cloned_operand_indices,
@@ -208,7 +204,6 @@ impl OutputSizeMethods for OutputSize {
 /// Note that output_size is a misnomer (to be changed); it contains all the axis lengths,
 /// including the ones that will be contracted (i.e. not just the ones in
 /// contraction.output_indices).
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct SizedContraction {
     pub contraction: Contraction,
@@ -222,7 +217,7 @@ impl SizedContraction {
     /// contractions) and pairwise contractions.
     ///
     /// ```
-    /// # use ndarray_einsum_beta::*;
+    /// # use ndarray_einsum::*;
     /// # use ndarray::prelude::*;
     /// let m1: Array3<f64> = Array::zeros((2, 2, 3));
     /// let m2: Array2<f64> = Array::zeros((3, 4));
@@ -244,7 +239,7 @@ impl SizedContraction {
             .collect();
         if all_operand_indices
             .iter()
-            .any(|c| self.output_size.get(c).is_none())
+            .any(|c| !self.output_size.contains_key(c))
         {
             return Err("Character found in new_operand_indices but not in self.output_size");
         }
@@ -256,7 +251,7 @@ impl SizedContraction {
         let new_output_size: OutputSize = self
             .output_size
             .iter()
-            .filter(|(&k, _)| all_operand_indices.contains(&k))
+            .filter(|&(&k, _)| all_operand_indices.contains(&k))
             .map(|(&k, &v)| (k, v))
             .collect();
 
@@ -270,7 +265,7 @@ impl SizedContraction {
         contraction: &Contraction,
         operand_shapes: &[Vec<usize>],
     ) -> Result<Self, &'static str> {
-        let output_size = OutputSize::from_contraction_and_shapes(&contraction, operand_shapes)?;
+        let output_size = OutputSize::from_contraction_and_shapes(contraction, operand_shapes)?;
 
         Ok(SizedContraction {
             contraction: contraction.clone(),
@@ -281,7 +276,7 @@ impl SizedContraction {
     /// Create a SizedContraction from an already-created Contraction and a list
     /// of operands.
     /// ```
-    /// # use ndarray_einsum_beta::*;
+    /// # use ndarray_einsum::*;
     /// # use ndarray::prelude::*;
     /// let m1: Array2<f64> = Array::zeros((2, 3));
     /// let m2: Array2<f64> = Array::zeros((3, 4));
@@ -303,7 +298,7 @@ impl SizedContraction {
     /// Create a SizedContraction from an `einsum`-formatted input string and a slice
     /// of `Vec<usize>`s containing the shapes of each operand.
     /// ```
-    /// # use ndarray_einsum_beta::*;
+    /// # use ndarray_einsum::*;
     /// # use ndarray::prelude::*;
     /// let sc = SizedContraction::from_string_and_shapes(
     ///     "ij,jk->ik",
@@ -325,7 +320,7 @@ impl SizedContraction {
     /// of operands.
     ///
     /// ```
-    /// # use ndarray_einsum_beta::*;
+    /// # use ndarray_einsum::*;
     /// # use ndarray::prelude::*;
     /// let m1: Array2<f64> = Array::zeros((2, 3));
     /// let m2: Array2<f64> = Array::zeros((3, 4));
@@ -346,7 +341,7 @@ impl SizedContraction {
     /// Perform the contraction on a set of operands.
     ///
     /// ```
-    /// # use ndarray_einsum_beta::*;
+    /// # use ndarray_einsum::*;
     /// # use ndarray::prelude::*;
     /// let m1: Array2<f64> = Array::zeros((2, 3));
     /// let m2: Array2<f64> = Array::zeros((3, 4));
@@ -358,14 +353,14 @@ impl SizedContraction {
         &self,
         operands: &[&dyn ArrayLike<A>],
     ) -> ArrayD<A> {
-        let cpc = EinsumPath::new(&self);
+        let cpc = EinsumPath::new(self);
         cpc.contract_operands(operands)
     }
 
     /// Show as an `einsum`-formatted string.
     ///
     /// ```
-    /// # use ndarray_einsum_beta::*;
+    /// # use ndarray_einsum::*;
     /// # use ndarray::prelude::*;
     /// let m1: Array2<f64> = Array::zeros((2, 3));
     /// let m2: Array2<f64> = Array::zeros((3, 4));
@@ -373,12 +368,12 @@ impl SizedContraction {
     /// assert_eq!(sc.as_einsum_string(), "ij,jk->ik");
     /// ```
     pub fn as_einsum_string(&self) -> String {
-        assert!(self.contraction.operand_indices.len() > 0);
+        assert!(!self.contraction.operand_indices.is_empty());
         let mut s: String = self.contraction.operand_indices[0]
             .iter()
             .cloned()
             .collect();
-        for op in (&self.contraction.operand_indices[1..]).iter() {
+        for op in self.contraction.operand_indices[1..].iter() {
             s.push(',');
             for &c in op.iter() {
                 s.push(c);
@@ -410,13 +405,13 @@ fn parse_einsum_string(input_string: &str) -> Option<EinsumParse> {
     let output_indices = captures.name("output").map(|s| String::from(s.as_str()));
 
     operand_indices.push(String::from(&captures["first_operand"]));
-    for s in (&captures["more_operands"]).split(',').skip(1) {
+    for s in captures["more_operands"].split(',').skip(1) {
         operand_indices.push(String::from(s));
     }
 
     Some(EinsumParse {
-        operand_indices: operand_indices,
-        output_indices: output_indices,
+        operand_indices,
+        output_indices,
     })
 }
 

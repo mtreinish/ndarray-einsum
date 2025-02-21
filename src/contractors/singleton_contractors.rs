@@ -26,13 +26,9 @@ use ndarray::LinalgScalar;
 use super::{SingletonContractor, SingletonViewer};
 use crate::{Contraction, SizedContraction};
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
-
 /// Returns a view or clone of the input tensor.
 ///
 /// Example: `ij->ij`
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct Identity {}
 
@@ -65,7 +61,6 @@ impl<A> SingletonContractor<A> for Identity {
 /// Permutes the axes of the input tensor and returns a view or clones the elements.
 ///
 /// Example: `ij->ji`
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct Permutation {
     permutation: Vec<usize>,
@@ -76,8 +71,8 @@ impl Permutation {
         let SizedContraction {
             contraction:
                 Contraction {
-                    ref operand_indices,
-                    ref output_indices,
+                    operand_indices,
+                    output_indices,
                     ..
                 },
             ..
@@ -127,10 +122,8 @@ impl<A> SingletonContractor<A> for Permutation {
 /// Sums across the elements of the input tensor that don't appear in the output tensor.
 ///
 /// Example: `ij->i`
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct Summation {
-    orig_axis_list: Vec<usize>,
     adjusted_axis_list: Vec<usize>,
 }
 
@@ -147,13 +140,9 @@ impl Summation {
 
     fn from_sizes(start_index: usize, num_summed_axes: usize) -> Self {
         assert!(num_summed_axes >= 1);
-        let orig_axis_list = (start_index..(start_index + num_summed_axes)).collect();
         let adjusted_axis_list = (0..num_summed_axes).map(|_| start_index).collect();
 
-        Summation {
-            orig_axis_list,
-            adjusted_axis_list,
-        }
+        Summation { adjusted_axis_list }
     }
 }
 
@@ -178,7 +167,6 @@ impl<A> SingletonContractor<A> for Summation {
 ///
 /// 1. `ii->i`
 /// 2. `iij->ji`
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct Diagonalization {
     input_to_output_mapping: Vec<usize>,
@@ -190,11 +178,11 @@ impl Diagonalization {
         let SizedContraction {
             contraction:
                 Contraction {
-                    ref operand_indices,
-                    ref output_indices,
+                    operand_indices,
+                    output_indices,
                     ..
                 },
-            ref output_size,
+            output_size,
         } = sc;
         assert_eq!(operand_indices.len(), 1);
 
@@ -243,7 +231,7 @@ impl<A> SingletonViewer<A> for Diagonalization {
         let data_slice = tensor.as_slice_memory_order().unwrap();
         ArrayView::from_shape(
             IxDyn(&self.output_shape).strides(IxDyn(&strides)),
-            &data_slice,
+            data_slice,
         )
         .unwrap()
     }
@@ -266,7 +254,6 @@ impl<A> SingletonContractor<A> for Diagonalization {
 /// Permutes the elements of the input tensor and sums across elements that don't appear in the output.
 ///
 /// Example: `ijk->kj`
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct PermutationAndSummation {
     permutation: Permutation,
@@ -285,11 +272,11 @@ impl PermutationAndSummation {
             output_order.push(input_pos);
         }
         for (i, &input_char) in sc.contraction.operand_indices[0].iter().enumerate() {
-            if let None = sc
+            if !sc
                 .contraction
                 .output_indices
                 .iter()
-                .position(|&output_char| output_char == input_char)
+                .any(|&output_char| output_char == input_char)
             {
                 output_order.push(i);
             }
@@ -323,7 +310,6 @@ impl<A> SingletonContractor<A> for PermutationAndSummation {
 ///
 /// 1. `iijk->ik` (Diagonalizes the `i` axes and sums over `j`)
 /// 2. `jijik->ki` (Diagonalizes `i` and `j` and sums over `j` after diagonalization)
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct DiagonalizationAndSummation {
     diagonalization: Diagonalization,

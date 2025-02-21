@@ -24,7 +24,7 @@
 //! Examples (deliberately similar to [numpy's documentation](https://docs.scipy.org/doc/numpy/reference/generated/numpy.einsum.html)):
 //!
 //! ```
-//! # use ndarray_einsum_beta::*;
+//! # use ndarray_einsum::*;
 //! # use ndarray::prelude::*;
 //! let a: Array2<f64> = Array::range(0., 25., 1.)
 //!     .into_shape((5,5,)).unwrap();
@@ -37,7 +37,7 @@
 //!
 //! Trace of a matrix
 //! ```
-//! # use ndarray_einsum_beta::*;
+//! # use ndarray_einsum::*;
 //! # use ndarray::prelude::*;
 //! # let a: Array2<f64> = Array::range(0., 25., 1.)
 //! #     .into_shape((5,5,)).unwrap();
@@ -58,7 +58,7 @@
 //!
 //! Extract the diagonal
 //! ```
-//! # use ndarray_einsum_beta::*;
+//! # use ndarray_einsum::*;
 //! # use ndarray::prelude::*;
 //! # let a: Array2<f64> = Array::range(0., 25., 1.)
 //! #     .into_shape((5,5,)).unwrap();
@@ -80,7 +80,7 @@
 //!
 //! Sum over an axis
 //! ```
-//! # use ndarray_einsum_beta::*;
+//! # use ndarray_einsum::*;
 //! # use ndarray::prelude::*;
 //! # let a: Array2<f64> = Array::range(0., 25., 1.)
 //! #     .into_shape((5,5,)).unwrap();
@@ -102,7 +102,7 @@
 //!
 //! Compute matrix transpose
 //! ```
-//! # use ndarray_einsum_beta::*;
+//! # use ndarray_einsum::*;
 //! # use ndarray::prelude::*;
 //! # let a: Array2<f64> = Array::range(0., 25., 1.)
 //! #     .into_shape((5,5,)).unwrap();
@@ -128,7 +128,7 @@
 //!
 //! Multiply two matrices
 //! ```
-//! # use ndarray_einsum_beta::*;
+//! # use ndarray_einsum::*;
 //! # use ndarray::prelude::*;
 //! # let a: Array2<f64> = Array::range(0., 25., 1.)
 //! #     .into_shape((5,5,)).unwrap();
@@ -145,7 +145,7 @@
 //!
 //! Compute the path separately from the result
 //! ```
-//! # use ndarray_einsum_beta::*;
+//! # use ndarray_einsum::*;
 //! # use ndarray::prelude::*;
 //! # let a: Array2<f64> = Array::range(0., 25., 1.)
 //! #     .into_shape((5,5,)).unwrap();
@@ -179,6 +179,7 @@ mod contractors;
 pub use contractors::{EinsumPath, EinsumPathSteps};
 use contractors::{PairContractor, TensordotGeneral};
 
+#[allow(clippy::wrong_self_convention)]
 /// This trait is implemented for all `ArrayBase` variants and is parameterized by the data type.
 ///
 /// It's here so `einsum` and the other functions accepting a list of operands
@@ -233,7 +234,7 @@ pub fn einsum<A: LinalgScalar>(
 ///
 /// ```
 /// # use ndarray::prelude::*;
-/// # use ndarray_einsum_beta::*;
+/// # use ndarray_einsum::*;
 /// let m1 = Array::range(0., (3*4*5*6) as f64, 1.)
 ///             .into_shape((3,4,5,6,))
 ///             .unwrap();
@@ -284,8 +285,8 @@ where
     let rhs_axes_copy: Vec<_> = rhs_axes.iter().map(|x| x.index()).collect();
     let output_order: Vec<usize> = (0..(lhs.ndim() + rhs.ndim() - 2 * (lhs_axes.len()))).collect();
     let tensordotter = TensordotGeneral::from_shapes_and_axis_numbers(
-        &lhs.shape(),
-        &rhs.shape(),
+        lhs.shape(),
+        rhs.shape(),
         &lhs_axes_copy,
         &rhs_axes_copy,
         &output_order,

@@ -22,12 +22,8 @@
 //! The code here has some duplication and is probably not the most idiomatic way to accomplish this.
 
 use crate::SizedContraction;
-use std::collections::{HashMap, HashSet};
+use hashbrown::{HashMap, HashSet};
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug)]
 pub enum SingletonMethod {
     Identity,
@@ -38,7 +34,6 @@ pub enum SingletonMethod {
     DiagonalizationAndSummation,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug)]
 pub struct SingletonSummary {
     num_summed_axes: usize,
@@ -52,7 +47,7 @@ impl SingletonSummary {
         let output_indices = &sc.contraction.output_indices;
         let input_indices = &sc.contraction.operand_indices[0];
 
-        SingletonSummary::from_indices(&input_indices, &output_indices)
+        SingletonSummary::from_indices(input_indices, output_indices)
     }
 
     fn from_indices(input_indices: &[char], output_indices: &[char]) -> Self {
@@ -61,11 +56,11 @@ impl SingletonSummary {
             *input_counts.entry(c).or_insert(0) += 1;
         }
         let num_summed_axes = input_counts.len() - output_indices.len();
-        let num_diagonalized_axes = input_counts.iter().filter(|(_, &v)| v > 1).count();
+        let num_diagonalized_axes = input_counts.iter().filter(|&(_, &v)| v > 1).count();
         let num_reordered_axes = output_indices
             .iter()
             .zip(input_indices.iter())
-            .filter(|(&output_char, &input_char)| output_char != input_char)
+            .filter(|&(&output_char, &input_char)| output_char != input_char)
             .count();
 
         SingletonSummary {
@@ -92,7 +87,6 @@ impl SingletonSummary {
 }
 
 #[allow(dead_code)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone)]
 pub enum PairMethod {
     HadamardProduct,
@@ -107,7 +101,6 @@ pub enum PairMethod {
     StackedTensordotGeneral,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct PairSummary {
     num_stacked_axes: usize,
@@ -123,7 +116,7 @@ impl PairSummary {
         let lhs_indices = &sc.contraction.operand_indices[0];
         let rhs_indices = &sc.contraction.operand_indices[1];
 
-        PairSummary::from_indices(&lhs_indices, &rhs_indices, &output_indices)
+        PairSummary::from_indices(lhs_indices, rhs_indices, output_indices)
     }
 
     fn from_indices(lhs_indices: &[char], rhs_indices: &[char], output_indices: &[char]) -> Self {

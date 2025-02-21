@@ -15,13 +15,9 @@
 //! Methods to produce a `ContractionOrder`, specifying what order in which to perform pairwise contractions between tensors
 //! in order to perform the full contraction.
 use crate::SizedContraction;
-use std::collections::HashSet;
-
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use hashbrown::HashSet;
 
 /// Either an input operand or an intermediate result
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub enum OperandNumber {
     Input(usize),
@@ -29,7 +25,6 @@ pub enum OperandNumber {
 }
 
 /// Which two tensors to contract
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct OperandNumPair {
     pub lhs: OperandNumber,
@@ -38,7 +33,6 @@ pub struct OperandNumPair {
 
 /// A single pairwise contraction between two input operands, an input operand and an intermediate
 /// result, or two intermediate results.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Pair {
     /// The contraction to be performed
@@ -52,7 +46,6 @@ pub struct Pair {
 ///
 /// Either a singleton contraction, in the case of a single input operand, or a list of pair contractions,
 /// given two or more input operands
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub enum ContractionOrder {
     /// If there's only one input operand, this is simply a clone of the original SizedContraction
@@ -66,7 +59,6 @@ pub enum ContractionOrder {
 /// Strategy for optimizing the contraction. The only currently supported options are "Naive" and "Reverse".
 ///
 /// TODO: Figure out whether this should be done with traits
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub enum OptimizationMethod {
     /// Contracts each pair of tensors in the order given in the input and uses the intermediate
@@ -253,7 +245,7 @@ fn generate_path(sized_contraction: &SizedContraction, tensor_order: &[usize]) -
                 // Phew, now make the mini-contraction.
                 let sc = generate_sized_contraction_pair(
                     &lhs_indices,
-                    &rhs_indices,
+                    rhs_indices,
                     &output_indices,
                     &permuted_contraction,
                 );

@@ -2,8 +2,8 @@
 extern crate test;
 use test::Bencher;
 
-use ndarray_einsum_beta::*;
 use ndarray::prelude::*;
+use ndarray_einsum::*;
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
 

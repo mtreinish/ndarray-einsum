@@ -40,9 +40,9 @@ use crate::optimizers::{
     generate_optimized_order, ContractionOrder, OperandNumber, OptimizationMethod,
 };
 use crate::{ArrayLike, SizedContraction};
+use hashbrown::HashSet;
 use ndarray::prelude::*;
 use ndarray::LinalgScalar;
-use std::collections::HashSet;
 use std::fmt::Debug;
 
 mod singleton_contractors;
@@ -61,9 +61,6 @@ use pair_contractors::{
 
 mod strategies;
 use strategies::{PairMethod, PairSummary, SingletonMethod, SingletonSummary};
-
-#[cfg(feature = "serde")]
-use serde::Serialize;
 
 /// `let new_view = obj.view_singleton(tensor_view);`
 ///
@@ -131,16 +128,14 @@ pub trait PairContractor<A>: Debug {
 /// For example, the contraction `iij->i` will be performed by assigning a `Box`ed
 /// `DiagonalizationAndSummation` to `op`. The contraction `ijk->kij` will be performed
 /// by assigning a `Box`ed `Permutation` to `op`.
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct SingletonContraction<A> {
     method: SingletonMethod,
-    #[cfg_attr(feature = "serde", serde(skip))]
     op: Box<dyn SingletonContractor<A>>,
 }
 
 impl<A> SingletonContraction<A> {
     pub fn new(sc: &SizedContraction) -> Self {
-        let singleton_summary = SingletonSummary::new(&sc);
+        let singleton_summary = SingletonSummary::new(sc);
         let method = singleton_summary.get_strategy();
 
         SingletonContraction {
@@ -182,10 +177,8 @@ impl<A> Debug for SingletonContraction<A> {
 }
 
 /// Holds an `Box<dyn SingletonContractor<A>>` and the resulting simplified indices.
-#[cfg_attr(feature = "serde", derive(Serialize))]
 struct SimplificationMethodAndOutput<A> {
     method: SingletonMethod,
-    #[cfg_attr(feature = "serde", serde(skip))]
     op: Box<dyn SingletonContractor<A>>,
     new_indices: Vec<char>,
     einsum_string: String,
@@ -261,12 +254,10 @@ impl<A> Debug for SimplificationMethodAndOutput<A> {
 /// be either, it is generally not possible to know at compile time which specific PairContractor
 /// will be used to perform a given contraction, or even which contractions will be performed;
 /// the optimizer could choose a different order.
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct PairContraction<A> {
     lhs_simplification: Option<SimplificationMethodAndOutput<A>>,
     rhs_simplification: Option<SimplificationMethodAndOutput<A>>,
     method: PairMethod,
-    #[cfg_attr(feature = "serde", serde(skip))]
     op: Box<dyn PairContractor<A>>,
     simplified_einsum_string: String,
 }
@@ -279,28 +270,28 @@ impl<A> PairContraction<A> {
         let output_indices = &sc.contraction.output_indices;
 
         let lhs_simplification = SimplificationMethodAndOutput::from_indices_and_sizes(
-            &lhs_indices,
-            &rhs_indices,
-            &output_indices,
+            lhs_indices,
+            rhs_indices,
+            output_indices,
             sc,
         );
         let rhs_simplification = SimplificationMethodAndOutput::from_indices_and_sizes(
-            &rhs_indices,
-            &lhs_indices,
-            &output_indices,
+            rhs_indices,
+            lhs_indices,
+            output_indices,
             sc,
         );
         let new_lhs_indices = match &lhs_simplification {
-            Some(ref s) => s.new_indices.clone(),
+            Some(s) => s.new_indices.clone(),
             None => lhs_indices.clone(),
         };
         let new_rhs_indices = match &rhs_simplification {
-            Some(ref s) => s.new_indices.clone(),
+            Some(s) => s.new_indices.clone(),
             None => rhs_indices.clone(),
         };
 
         let reduced_sc = sc
-            .subset(&[new_lhs_indices, new_rhs_indices], &output_indices)
+            .subset(&[new_lhs_indices, new_rhs_indices], output_indices)
             .unwrap();
 
         let pair_summary = PairSummary::new(&reduced_sc);
@@ -399,7 +390,6 @@ impl<A> Debug for PairContraction<A> {
 
 /// Either a singleton contraction, in the case of a single input operand, or a list of pair contractions,
 /// given two or more input operands
-#[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Debug)]
 pub enum EinsumPathSteps<A> {
     /// A `SingletonContraction` consists of some combination of permutation of the input axes,
@@ -418,7 +408,6 @@ pub enum EinsumPathSteps<A> {
 /// and for each step in the path, how to perform the pairwise contraction. For example, two tensors might be contracted
 /// with one another by computing the Hadamard (element-wise) product of the tensors, while a different pair might be contracted
 /// by performing a matrix multiplication. The contractions that will be performed are fully specified within the `EinsumPath`.
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EinsumPath<A> {
     /// The order in which tensors should be paired off and contracted with one another
     pub contraction_order: ContractionOrder,
@@ -429,7 +418,7 @@ pub struct EinsumPath<A> {
 
 impl<A> EinsumPath<A> {
     pub fn new(sc: &SizedContraction) -> Self {
-        let contraction_order = generate_optimized_order(&sc, OptimizationMethod::Naive);
+        let contraction_order = generate_optimized_order(sc, OptimizationMethod::Naive);
 
         EinsumPath::from_path(&contraction_order)
     }

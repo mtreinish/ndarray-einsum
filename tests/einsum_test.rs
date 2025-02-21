@@ -1,6 +1,6 @@
 use ndarray::prelude::*;
 use ndarray::Data;
-use ndarray_einsum_beta::*;
+use ndarray_einsum::*;
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
 const TOL: f64 = 1e-10;
