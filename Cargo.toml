@@ -2,7 +2,7 @@
 name = "ndarray-einsum"
 version = "0.8.0"
 edition = "2021"
-rust-version = "1.64"
+rust-version = "1.65"
 license = "Apache-2.0"
 authors = ["oracleofnj <jared.samet@aya.yale.edu>", "Matthew Treinish <mtreinish@kortar.org>"]
 repository = "https://github.com/mtreinish/ndarray-einsum"
