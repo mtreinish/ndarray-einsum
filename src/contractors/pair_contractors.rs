@@ -57,10 +57,10 @@ fn maybe_find_outputs_in_inputs_unique(
             let input_pos = input_indices
                 .iter()
                 .position(|&input_char| input_char == output_char);
-            if input_pos.is_some() {
+            if let Some(input) = input_pos {
                 assert!(!input_indices
                     .iter()
-                    .skip(input_pos.unwrap() + 1)
+                    .skip(input + 1)
                     .any(|&input_char| input_char == output_char));
             }
             input_pos
