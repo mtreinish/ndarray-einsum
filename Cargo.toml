@@ -19,8 +19,8 @@ hashbrown = "0.15"
 
 [dev-dependencies]
 approx = "0.5"
-ndarray-rand = "0.15.0"
-rand="0.8"
+ndarray-rand = "0.16.0"
+rand="0.9"
 
 [profile.release]
 lto = true
