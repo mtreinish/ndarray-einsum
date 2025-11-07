@@ -270,20 +270,12 @@ impl TensordotGeneral {
         let rhs_contracted_axes = find_outputs_in_inputs_unique(contracted_indices, rhs_indices);
         let mut uncontracted_chars: Vec<char> = lhs_indices
             .iter()
-            .filter(|&&input_char| {
-                output_indices
-                    .iter()
-                    .any(|&output_char| input_char == output_char)
-            })
+            .filter(|&&input_char| output_indices.contains(&input_char))
             .cloned()
             .collect();
         let mut rhs_uncontracted_chars: Vec<char> = rhs_indices
             .iter()
-            .filter(|&&input_char| {
-                output_indices
-                    .iter()
-                    .any(|&output_char| input_char == output_char)
-            })
+            .filter(|&&input_char| output_indices.contains(&input_char))
             .cloned()
             .collect();
         uncontracted_chars.append(&mut rhs_uncontracted_chars);
@@ -859,10 +851,7 @@ impl StackedTensordotGeneral {
         }
 
         for (lhs_pos, &lhs_char) in lhs_indices.iter().enumerate() {
-            if !output_indices
-                .iter()
-                .any(|&output_char| output_char == lhs_char)
-            {
+            if !output_indices.contains(&lhs_char) {
                 // Contracted index
                 lhs_contracted_axes.push(lhs_pos);
                 // Must be in RHS if it's not in output

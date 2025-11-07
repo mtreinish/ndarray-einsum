@@ -186,7 +186,7 @@ use contractors::{PairContractor, TensordotGeneral};
 /// can take a slice `&[&dyn ArrayLike<A>]` where the elements of the slice can have
 /// different numbers of dimensions and can be a mixture of `Array` and `ArrayView`.
 pub trait ArrayLike<A> {
-    fn into_dyn_view(&self) -> ArrayView<A, IxDyn>;
+    fn into_dyn_view(&self) -> ArrayView<'_, A, IxDyn>;
 }
 
 impl<A, S, D> ArrayLike<A> for ArrayBase<S, D>
@@ -194,7 +194,7 @@ where
     S: Data<Elem = A>,
     D: Dimension,
 {
-    fn into_dyn_view(&self) -> ArrayView<A, IxDyn> {
+    fn into_dyn_view(&self) -> ArrayView<'_, A, IxDyn> {
         self.view().into_dyn()
     }
 }
