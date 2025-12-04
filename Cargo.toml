@@ -15,7 +15,7 @@ regex = "1"
 lazy_static = "1"
 ndarray = { version = "0.17", features = ["approx"] }
 num-traits = "0.2"
-hashbrown = "0.15"
+hashbrown = "0.16"
 
 [dev-dependencies]
 approx = "0.5"
