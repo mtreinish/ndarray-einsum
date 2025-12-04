@@ -2,7 +2,7 @@ use ndarray::prelude::*;
 use ndarray::Data;
 use ndarray_einsum::*;
 use ndarray_rand::RandomExt;
-use rand::distributions::Uniform;
+use rand::distr::Uniform;
 const TOL: f64 = 1e-10;
 
 trait AllClose {
@@ -235,7 +235,7 @@ fn rand_array<Sh, D: Dimension>(shape: Sh) -> ArrayBase<ndarray::OwnedRepr<f64>,
 where
     Sh: ShapeBuilder<Dim = D>,
 {
-    Array::random(shape, Uniform::new(-5., 5.))
+    Array::random(shape, Uniform::new(-5., 5.).unwrap())
 }
 
 #[test]

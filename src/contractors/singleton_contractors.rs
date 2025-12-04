@@ -272,12 +272,7 @@ impl PermutationAndSummation {
             output_order.push(input_pos);
         }
         for (i, &input_char) in sc.contraction.operand_indices[0].iter().enumerate() {
-            if !sc
-                .contraction
-                .output_indices
-                .iter()
-                .any(|&output_char| output_char == input_char)
-            {
+            if !sc.contraction.output_indices.contains(&input_char) {
                 output_order.push(i);
             }
         }
